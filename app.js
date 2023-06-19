@@ -25,7 +25,7 @@ const json = JSON.parse(fs.readFileSync("./IO/people.json"));
 const links = JSON.parse(fs.readFileSync("./IO/links.json"));
 
 (async function () {
-  const browser = await puppeteer.launch({ headless: false });
+  const browser = await puppeteer.launch({ headless: "new" });
   const page = await browser.newPage();
   await page.setUserAgent(userAgent.random().toString());
 
