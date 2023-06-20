@@ -4,6 +4,7 @@ const puppeteer = require("puppeteer-extra");
 const StealthPlugin = require("puppeteer-extra-plugin-stealth");
 
 const userAgent = require("user-agents");
+const desktopUA = new userAgent({ deviceCategory: "desktop" }).toString();
 const fs = require("fs");
 
 const people = {
@@ -25,9 +26,10 @@ const json = JSON.parse(fs.readFileSync("./IO/people.json"));
 const links = JSON.parse(fs.readFileSync("./IO/links.json"));
 
 (async function () {
-  const browser = await puppeteer.launch({ headless: "new" });
+  const browser = await puppeteer.launch({ headless: false });
   const page = await browser.newPage();
-  await page.setUserAgent(userAgent.random().toString());
+  await page.setUserAgent(desktopUA);
+  // await page.setUserAgent(userAgent.random().toString());
 
   await page.goto(
     "https://www.linkedin.com/feed/update/urn:li:activity:7067869281031467008"
@@ -56,7 +58,8 @@ const links = JSON.parse(fs.readFileSync("./IO/links.json"));
   );
   for (let link of links.link) {
     const page = await browser.newPage();
-    await page.setUserAgent(userAgent.random().toString());
+    await page.setUserAgent(desktopUA);
+    // await page.setUserAgent(userAgent.random().toString());
 
     await page.goto(link);
 
@@ -93,7 +96,7 @@ const links = JSON.parse(fs.readFileSync("./IO/links.json"));
 
         scrollableSection.scrollTop = div.scrollHeight;
       }, ".artdeco-modal__content");
-    }, 2000);
+    }, 1500);
 
     setTimeout(async function () {
       const repost = await page.$$(
@@ -125,6 +128,6 @@ const links = JSON.parse(fs.readFileSync("./IO/links.json"));
           browser.close();
         }
       });
-    }, 5000);
+    }, 3000);
   }
 })();
