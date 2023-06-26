@@ -26,7 +26,7 @@ const json = JSON.parse(fs.readFileSync("./IO/people.json"));
 const links = JSON.parse(fs.readFileSync("./IO/links.json"));
 
 (async function () {
-  const browser = await puppeteer.launch({ headless: "new" });
+  const browser = await puppeteer.launch({ headless: false });
   const page = await browser.newPage();
   await page.setUserAgent(desktopUA);
   // await page.setUserAgent(userAgent.random().toString());
@@ -53,9 +53,16 @@ const links = JSON.parse(fs.readFileSync("./IO/links.json"));
 
   await page.$eval(".btn__primary--large", (element) => element.click());
 
-  await page.waitForSelector(
-    ".social-details-social-activity > ul > li > .ember-view"
-  );
+  try {
+    await page.waitForSelector(
+      ".social-details-social-activity > ul > li > .ember-view"
+    );
+  } catch (err) {
+    console.log(
+      "A captcha appeared.\nCreate a new LinkedIn account or set headless mode to false and solve the captcha manually."
+    );
+  }
+
   for (let link of links.link) {
     const page = await browser.newPage();
     await page.setUserAgent(desktopUA);
@@ -73,6 +80,7 @@ const links = JSON.parse(fs.readFileSync("./IO/links.json"));
       (element) => element.textContent.match(/\d+/)[0]
     );
     repostCount += Number(repostText);
+    const singleRepostCount = Number(repostText);
 
     await page.$eval(
       ".social-details-social-activity > ul > li > .ember-view",
@@ -89,14 +97,14 @@ const links = JSON.parse(fs.readFileSync("./IO/links.json"));
       scrollableSection.scrollTop = div.scrollHeight;
     }, ".artdeco-modal__content");
 
-    setTimeout(async function () {
-      await page.evaluate(async (selector) => {
-        const scrollableSection = document.querySelector(selector);
-        const div = document.querySelector(".scaffold-finite-scroll__content");
+    const result = await page.evaluate(async (selector) => {
+      const scrollableSection = document.querySelector(selector);
+      const div = document.querySelector(".scaffold-finite-scroll__content");
 
-        scrollableSection.scrollTop = div.scrollHeight;
-      }, ".artdeco-modal__content");
-    }, 1500);
+      return scrollableSection.scrollTop !== div.scrollHeight;
+    }, ".artdeco-modal__content");
+
+    console.log(result);
 
     setTimeout(async function () {
       const repost = await page.$$(
@@ -110,12 +118,12 @@ const links = JSON.parse(fs.readFileSync("./IO/links.json"));
           if (!json.people.includes(fullTitle)) json.people.push(fullTitle);
         }
       }
-      console.log(`${count} reposts from ${link}`);
+      console.log(`${count} / ${singleRepostCount} reposts from ${link}`);
       totalCount += count;
       count = 0;
       fs.writeFile("./IO/people.json", JSON.stringify(json), (error) => {
         if (error) {
-          console.log("An error has occurred ", error);
+          console.log("An error has occurred while writing people.json", error);
           return;
         }
         status++;
@@ -128,6 +136,6 @@ const links = JSON.parse(fs.readFileSync("./IO/links.json"));
           browser.close();
         }
       });
-    }, 3000);
+    }, 4000);
   }
 })();
