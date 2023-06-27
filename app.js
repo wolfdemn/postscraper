@@ -26,7 +26,7 @@ const json = JSON.parse(fs.readFileSync("./IO/people.json"));
 const links = JSON.parse(fs.readFileSync("./IO/links.json"));
 
 (async function () {
-  const browser = await puppeteer.launch({ headless: false });
+  const browser = await puppeteer.launch({ headless: "new" });
   const page = await browser.newPage();
   await page.setUserAgent(desktopUA);
   // await page.setUserAgent(userAgent.random().toString());
@@ -53,15 +53,17 @@ const links = JSON.parse(fs.readFileSync("./IO/links.json"));
 
   await page.$eval(".btn__primary--large", (element) => element.click());
 
-  try {
-    await page.waitForSelector(
-      ".social-details-social-activity > ul > li > .ember-view"
-    );
-  } catch (err) {
+  if ((await page.$("#captcha-internal")) !== null) {
     console.log(
-      "A captcha appeared.\nCreate a new LinkedIn account or set headless mode to false and solve the captcha manually."
+      "A captcha appeared.\n\nCreate a new LinkedIn account or set headless mode to false and solve the captcha manually.\nIf you can't login after solving the captcha, the account is restricted."
     );
+
+    return process.exit();
   }
+
+  await page.waitForSelector(
+    ".social-details-social-activity > ul > li > .ember-view"
+  );
 
   for (let link of links.link) {
     const page = await browser.newPage();
