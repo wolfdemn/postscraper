@@ -11,6 +11,8 @@ const fs = require("fs");
 // eslint-disable-next-line no-unused-vars
 const colors = require("colors");
 
+const config = require("./config.js");
+
 const people = {
   people: [],
 };
@@ -57,7 +59,7 @@ async function Scroll(page) {
 }
 
 (async function () {
-  const browser = await puppeteer.launch({ headless: false });
+  const browser = await puppeteer.launch({ headless: config.headless });
   const page = await browser.newPage();
   await page.setUserAgent(desktopUA);
   // await page.setUserAgent(userAgent.random().toString());
@@ -84,12 +86,16 @@ async function Scroll(page) {
 
   await page.$eval(".btn__primary--large", (element) => element.click());
 
-  if ((await page.$("#captcha-internal")) !== null) {
-    console.log(
-      "A captcha appeared.\n\nCreate a new LinkedIn account or set headless mode to false and solve the captcha manually.\nIf you can't login after solving the captcha, the account is restricted."
-    );
+  if (config.headless === "new") {
+    if ((await page.$("#captcha-internal")) !== null) {
+      console.log(
+        "A captcha appeared.\n\n".bold.red +
+          "Create a new LinkedIn account or set headless mode to false and solve the captcha manually.\nIf you can't login after solving the captcha, the account is restricted."
+            .yellow
+      );
 
-    return process.exit();
+      return process.exit();
+    }
   }
 
   await page.waitForSelector(
