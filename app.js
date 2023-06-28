@@ -5,7 +5,11 @@ const StealthPlugin = require("puppeteer-extra-plugin-stealth");
 
 const userAgent = require("user-agents");
 const desktopUA = new userAgent({ deviceCategory: "desktop" }).toString();
+
 const fs = require("fs");
+
+// eslint-disable-next-line no-unused-vars
+const colors = require("colors");
 
 const people = {
   people: [],
@@ -25,8 +29,35 @@ puppeteer.use(StealthPlugin());
 const json = JSON.parse(fs.readFileSync("./IO/people.json"));
 const links = JSON.parse(fs.readFileSync("./IO/links.json"));
 
+async function Scroll(page) {
+  await page.evaluate((selector) => {
+    const scrollableSection = document.querySelector(selector);
+    const div = document.querySelector(".scaffold-finite-scroll__content");
+
+    scrollableSection.scrollTop = div.scrollHeight;
+  }, ".artdeco-modal__content");
+
+  const test = await page.evaluate((selector) => {
+    const scrollableSection = document.querySelector(selector);
+    const div = document.querySelector(".scaffold-finite-scroll__content");
+    const schroedingerDiv = document.querySelector(
+      ".feed-shared-reposts-modal__private-shares-footer"
+    );
+
+    if (schroedingerDiv) {
+      return (
+        scrollableSection.scrollHeight !==
+        div.scrollHeight + schroedingerDiv.offsetHeight
+      );
+    } else return scrollableSection.scrollHeight !== div.scrollHeight;
+  }, ".artdeco-modal__content");
+
+  if (test) await Scroll(page);
+  else return;
+}
+
 (async function () {
-  const browser = await puppeteer.launch({ headless: "new" });
+  const browser = await puppeteer.launch({ headless: false });
   const page = await browser.newPage();
   await page.setUserAgent(desktopUA);
   // await page.setUserAgent(userAgent.random().toString());
@@ -37,11 +68,11 @@ const links = JSON.parse(fs.readFileSync("./IO/links.json"));
 
   await page.setViewport({ width: 1280, height: 1024 });
 
-  const textSelector = await page.waitForSelector(
-    "header > nav > div > .nav__button-secondary"
-  );
+  await page.waitForSelector("header > nav > div > .nav__button-secondary");
 
-  textSelector.click();
+  await page.$eval(".header > nav > div > .nav__button-secondary", (element) =>
+    element.click()
+  );
 
   await page.waitForSelector("#username");
   await page.type("#username", process.env.EMAIL);
@@ -89,24 +120,9 @@ const links = JSON.parse(fs.readFileSync("./IO/links.json"));
       (element) => element.click()
     );
 
-    await page.waitForSelector(".artdeco-modal__content");
     await page.waitForSelector(".scaffold-finite-scroll__content");
 
-    await page.evaluate(async (selector) => {
-      const scrollableSection = document.querySelector(selector);
-      const div = document.querySelector(".scaffold-finite-scroll__content");
-
-      scrollableSection.scrollTop = div.scrollHeight;
-    }, ".artdeco-modal__content");
-
-    const result = await page.evaluate(async (selector) => {
-      const scrollableSection = document.querySelector(selector);
-      const div = document.querySelector(".scaffold-finite-scroll__content");
-
-      return scrollableSection.scrollTop !== div.scrollHeight;
-    }, ".artdeco-modal__content");
-
-    console.log(result);
+    await Scroll(page);
 
     setTimeout(async function () {
       const repost = await page.$$(
@@ -120,7 +136,22 @@ const links = JSON.parse(fs.readFileSync("./IO/links.json"));
           if (!json.people.includes(fullTitle)) json.people.push(fullTitle);
         }
       }
-      console.log(`${count} / ${singleRepostCount} reposts from ${link}`);
+      if (count === singleRepostCount) {
+        console.log(
+          `${count} / ${singleRepostCount}`.green +
+            " reposts from ".yellow +
+            link.blue
+        );
+      } else {
+        console.log(
+          `${count} / ${singleRepostCount}`.red +
+            " reposts from ".yellow +
+            link.blue
+        );
+      }
+
+      page.close();
+
       totalCount += count;
       count = 0;
       fs.writeFile("./IO/people.json", JSON.stringify(json), (error) => {
@@ -133,6 +164,7 @@ const links = JSON.parse(fs.readFileSync("./IO/links.json"));
         if (status === links.link.length) {
           console.log(
             `Scraped ${totalCount} out of ${repostCount} reposts from ${links.link.length} links.`
+              .bold.green
           );
 
           browser.close();
