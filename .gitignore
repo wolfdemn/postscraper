@@ -1,3 +1,4 @@
 node_modules
 .env
 people.json
+links.json
