@@ -1,6 +1,6 @@
 // Use either false or "new"
 const config = {
-  headless: "new",
+  headless: false,
 };
 
 module.exports = config;

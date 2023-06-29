@@ -12,6 +12,7 @@ const fs = require("fs");
 const colors = require("colors");
 
 const config = require("./config.js");
+const { LoginToLinkedIn, SetupPageForLink, Scroll } = require("./functions.js");
 
 const people = {
   people: [],
@@ -31,60 +32,22 @@ puppeteer.use(StealthPlugin());
 const json = JSON.parse(fs.readFileSync("./IO/people.json"));
 const links = JSON.parse(fs.readFileSync("./IO/links.json"));
 
-async function Scroll(page) {
-  await page.evaluate((selector) => {
-    const scrollableSection = document.querySelector(selector);
-    const div = document.querySelector(".scaffold-finite-scroll__content");
-
-    scrollableSection.scrollTop = div.scrollHeight;
-  }, ".artdeco-modal__content");
-
-  const test = await page.evaluate((selector) => {
-    const scrollableSection = document.querySelector(selector);
-    const div = document.querySelector(".scaffold-finite-scroll__content");
-    const schroedingerDiv = document.querySelector(
-      ".feed-shared-reposts-modal__private-shares-footer"
-    );
-
-    if (schroedingerDiv) {
-      return (
-        scrollableSection.scrollHeight !==
-        div.scrollHeight + schroedingerDiv.offsetHeight
-      );
-    } else return scrollableSection.scrollHeight !== div.scrollHeight;
-  }, ".artdeco-modal__content");
-
-  if (test) await Scroll(page);
-  else return;
-}
-
 (async function () {
   const browser = await puppeteer.launch({ headless: config.headless });
   const page = await browser.newPage();
   await page.setUserAgent(desktopUA);
-  // await page.setUserAgent(userAgent.random().toString());
 
-  await page.goto(
-    "https://www.linkedin.com/feed/update/urn:li:activity:7067869281031467008"
-  );
+  await page.goto("https://www.linkedin.com");
 
   await page.setViewport({ width: 1280, height: 1024 });
 
-  await page.waitForSelector("header > nav > div > .nav__button-secondary");
+  await page.waitForSelector("body > nav > div > .nav__button-secondary");
 
-  await page.$eval(".header > nav > div > .nav__button-secondary", (element) =>
+  await page.$eval("body > nav > div > .nav__button-secondary", (element) =>
     element.click()
   );
 
-  await page.waitForSelector("#username");
-  await page.type("#username", process.env.EMAIL);
-
-  await page.waitForSelector("#password");
-  await page.type("#password", process.env.PASSWORD);
-
-  await page.waitForSelector(".btn__primary--large");
-
-  await page.$eval(".btn__primary--large", (element) => element.click());
+  await LoginToLinkedIn(page);
 
   if (config.headless === "new") {
     if ((await page.$("#captcha-internal")) !== null) {
@@ -102,17 +65,13 @@ async function Scroll(page) {
     ".social-details-social-activity > ul > li > .ember-view"
   );
 
+  page.close();
+
   for (let link of links.link) {
     const page = await browser.newPage();
     await page.setUserAgent(desktopUA);
-    // await page.setUserAgent(userAgent.random().toString());
 
-    await page.goto(link);
-
-    await page.setViewport({ width: 1280, height: 1024 });
-    await page.waitForSelector(
-      ".social-details-social-activity > ul > li > .ember-view"
-    );
+    await SetupPageForLink(page, link);
 
     const repostText = await page.$eval(
       ".social-details-social-activity > ul > li > .ember-view",
