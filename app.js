@@ -37,15 +37,11 @@ const links = JSON.parse(fs.readFileSync("./IO/links.json"));
   const page = await browser.newPage();
   await page.setUserAgent(desktopUA);
 
-  await page.goto("https://www.linkedin.com");
+  await page.goto(
+    "https://www.linkedin.com/login?fromSignIn=true&trk=guest_homepage-basic_nav-header-signin"
+  );
 
   await page.setViewport({ width: 1280, height: 1024 });
-
-  await page.waitForSelector("body > nav > div > .nav__button-secondary");
-
-  await page.$eval("body > nav > div > .nav__button-secondary", (element) =>
-    element.click()
-  );
 
   await LoginToLinkedIn(page);
 
@@ -61,9 +57,7 @@ const links = JSON.parse(fs.readFileSync("./IO/links.json"));
     }
   }
 
-  await page.waitForSelector(
-    ".social-details-social-activity > ul > li > .ember-view"
-  );
+  await page.waitForSelector(".global-nav__content");
 
   page.close();
 
@@ -89,52 +83,49 @@ const links = JSON.parse(fs.readFileSync("./IO/links.json"));
 
     await Scroll(page);
 
-    setTimeout(async function () {
-      const repost = await page.$$(
-        ".update-components-text-view__mention, .update-components-actor__name > .visually-hidden"
+    const repost = await page.$$(
+      ".update-components-text-view__mention, .scaffold-finite-scroll__content > div > .feed-shared-update-v2 > div > .update-components-actor--with-control-menu > .update-components-actor__container-link > .update-components-actor__meta > .update-components-actor__title > .update-components-actor__name > .visually-hidden"
+    );
+
+    for (let i = 0; i < repost.length; i++) {
+      const fullTitle = await repost[i].evaluate((el) => el.textContent);
+      count++;
+      if (!json.people.includes(fullTitle)) json.people.push(fullTitle);
+    }
+    if (count === singleRepostCount) {
+      console.log(
+        `${count} / ${singleRepostCount}`.green +
+          " reposts from ".yellow +
+          link.blue
       );
+    } else {
+      console.log(
+        `${count} / ${singleRepostCount}`.red +
+          " reposts from ".yellow +
+          link.blue
+      );
+    }
 
-      for (let i = 0; i < repost.length; i++) {
-        const fullTitle = await repost[i].evaluate((el) => el.textContent);
-        if (fullTitle !== "The CSL Group Inc.") {
-          count++;
-          if (!json.people.includes(fullTitle)) json.people.push(fullTitle);
-        }
+    page.close();
+
+    fs.writeFile("./IO/people.json", JSON.stringify(json), (error) => {
+      if (error) {
+        console.log("An error has occurred while writing people.json", error);
+        return;
       }
-      if (count === singleRepostCount) {
+      status++;
+
+      if (status === links.link.length) {
         console.log(
-          `${count} / ${singleRepostCount}`.green +
-            " reposts from ".yellow +
-            link.blue
+          `\nScraped ${totalCount} out of ${repostCount} reposts from ${links.link.length} links.`
+            .bold.green
         );
-      } else {
-        console.log(
-          `${count} / ${singleRepostCount}`.red +
-            " reposts from ".yellow +
-            link.blue
-        );
+
+        browser.close();
       }
+    });
 
-      page.close();
-
-      totalCount += count;
-      count = 0;
-      fs.writeFile("./IO/people.json", JSON.stringify(json), (error) => {
-        if (error) {
-          console.log("An error has occurred while writing people.json", error);
-          return;
-        }
-        status++;
-
-        if (status === links.link.length) {
-          console.log(
-            `Scraped ${totalCount} out of ${repostCount} reposts from ${links.link.length} links.`
-              .bold.green
-          );
-
-          browser.close();
-        }
-      });
-    }, 4000);
+    totalCount += count;
+    count = 0;
   }
 })();
